@@ -10,8 +10,8 @@ import (
 )
 
 // Visual element displayed in help
-func DevPreviewLabel() string {
-	return color.Info("[Preview] ")
+func ApplyDevPreviewLabel(message string) string {
+	return color.Info("[Preview] ") + message
 }
 
 // Annotation used in templates and tools like documentation generation

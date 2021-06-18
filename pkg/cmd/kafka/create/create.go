@@ -10,11 +10,11 @@ import (
 
 	"github.com/redhat-developer/app-services-cli/pkg/api/ams/amsclient"
 	"github.com/redhat-developer/app-services-cli/pkg/localize"
+	"github.com/redhat-developer/app-services-cli/pkg/serviceregistry"
 
 	"github.com/redhat-developer/app-services-cli/pkg/cmd/flag"
 	flagutil "github.com/redhat-developer/app-services-cli/pkg/cmdutil/flags"
 	"github.com/redhat-developer/app-services-cli/pkg/connection"
-	"github.com/redhat-developer/app-services-cli/pkg/kafka"
 
 	"github.com/redhat-developer/app-services-cli/internal/build"
 
@@ -84,7 +84,7 @@ func NewCreateCommand(f *factory.Factory) *cobra.Command {
 			if len(args) > 0 {
 				opts.name = args[0]
 
-				if err := kafka.ValidateName(opts.name); err != nil {
+				if err := serviceregistry.ValidateName(opts.name); err != nil {
 					return err
 				}
 			}

@@ -1,0 +1,104 @@
+[registry.cmd.shortDescription]
+one = 'Service Registry commands'
+
+[registry.cmd.longDescription]
+one = ''' 
+Manage your service registries directly from the command line.
+Create new Service Registry instances and interact with them by creating artifacts and downloading them to your machine
+'''
+
+[registry.cmd.example]
+one = '''
+## Create Service Registry
+rhoas registry create --name=myregistry
+
+## List registry
+rhoas registry list 
+'''
+
+[registry.cmd.create.shortDescription]
+one = 'Create Service Registry'
+
+[registry.cmd.create.longDescription]
+one = '''
+Create Service Registry instance  
+'''
+
+[registry.cmd.create.example]
+one = '''
+## Create Service Registry
+rhoas registry create --name=myregistry
+'''
+
+[registry.cmd.create.info.successMessage]
+one = 'Successfully created Service Registry'
+
+[registry.cmd.delete.shortDescription]
+one = 'Delete Service Registry'
+
+[registry.cmd.delete.longDescription]
+one = ''' 
+Create Service Registry instance along with all artifacts
+'''
+
+[registry.cmd.delete.example]
+one = '''
+rhoas registry delete <id>
+'''
+
+[registry.cmd.describe.shortDescription]
+one = 'Describe Service Registry instance'
+
+[registry.cmd.describe.longDescription]
+one = ''' 
+Describe Service Registry instance. Fetch all required fields including Registry URL 
+'''
+
+[registry.cmd.describe.example]
+one = '''
+rhoas registry describe [id]
+'''
+
+[registry.cmd.list.shortDescription]
+one = 'List service registries'
+
+[registry.cmd.list.longDescription]
+one = ''' 
+List all service registries for your account with ability to paginate over the results
+'''
+
+[registry.cmd.list.example]
+one = '''
+rhoas registry list
+'''
+
+[registry.cmd.use.shortDescription]
+one = 'Use Service Registry'
+
+[registry.cmd.use.longDescription]
+one = ''' 
+Select Service Registry instance that will be used with all instances specific commands
+'''
+
+[registry.cmd.use.example]
+one = '''
+rhoas registry use <id>
+'''
+
+# Errors
+
+[registry.cmd.create.error.name.requiredWhenNonInteractive]
+one = 'Name argument is required when not in interactive'
+
+[registry.cmd.create.flag.output.description]
+description = "Description for --output flag"
+one = 'Format in which to display the Service Registry instance. Choose from: "json", "yml", "yaml"'
+
+[registry.cmd.create.flag.use.description]
+one = 'Set the new Service Registry instance to the current instance'
+
+[registry.cmd.create.input.name.message]
+one = 'Please provide name of Service Registry'
+
+[registry.cmd.create.input.name.help]
+ 
