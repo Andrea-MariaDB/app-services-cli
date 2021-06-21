@@ -101,4 +101,4 @@ one = 'Set the new Service Registry instance to the current instance'
 one = 'Please provide name of Service Registry'
 
 [registry.cmd.create.input.name.help]
- 
+one = 'Name can be any alpha numeric characters'
