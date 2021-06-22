@@ -13,7 +13,7 @@ import (
 	"github.com/redhat-developer/app-services-cli/pkg/connection"
 	"github.com/redhat-developer/app-services-cli/pkg/kafka"
 
-	srsmgmtv1 "github.com/redhat-developer/app-services-sdk-go/srsmgmt/apiv1/client"
+	srsmgmtv1 "github.com/redhat-developer/app-services-sdk-go/registrymgmt/apiv1/client"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/redhat-developer/app-services-cli/pkg/dump"
@@ -147,7 +147,7 @@ func runCreate(opts *Options) error {
 
 	registryConfig := &config.ServiceRegistryConfig{
 		InstanceID: response.GetId(),
-		Name:       *response.Name,
+		Name:       response.GetName(),
 	}
 
 	if opts.autoUse {

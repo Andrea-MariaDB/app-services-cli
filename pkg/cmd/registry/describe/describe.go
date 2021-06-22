@@ -17,7 +17,7 @@ import (
 	"github.com/redhat-developer/app-services-cli/pkg/cmd/factory"
 	"github.com/redhat-developer/app-services-cli/pkg/cmdutil"
 	"github.com/redhat-developer/app-services-cli/pkg/dump"
-	srsmgmtv1 "github.com/redhat-developer/app-services-sdk-go/srsmgmt/apiv1/client"
+	srsmgmtv1 "github.com/redhat-developer/app-services-sdk-go/registrymgmt/apiv1/client"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
@@ -71,22 +71,7 @@ func NewDescribeCommand(f *factory.Factory) *cobra.Command {
 				return runDescribe(opts)
 			}
 
-			// TODO implement config part
-			return errors.New("Not implemented. Use id or name as argument")
-
-			// cfg, err := opts.Config.Load()
-			// if err != nil {
-			// 	return err
-			// }
-
-			// var kafkaConfig *config.KafkaConfig
-			// if cfg.Services.Kafka == kafkaConfig || cfg.Services.Kafka.ClusterID == "" {
-			// 	return errors.New(opts.localizer.MustLocalize("kafka.common.error.noKafkaSelected"))
-			// }
-
-			// opts.id = cfg.Services.Kafka.ClusterID
-
-			// return runDescribe(opts)
+			return errors.New("Use id or name as argument")
 		},
 	}
 

@@ -20,7 +20,7 @@ import (
 	"github.com/redhat-developer/app-services-cli/pkg/cmd/flag"
 	"github.com/spf13/cobra"
 
-	srsmgmtv1client "github.com/redhat-developer/app-services-sdk-go/srsmgmt/apiv1/client"
+	srsmgmtv1client "github.com/redhat-developer/app-services-sdk-go/registrymgmt/apiv1/client"
 )
 
 type options struct {
@@ -162,7 +162,7 @@ func runDelete(opts *options) error {
 		return err
 	}
 
-	logger.Info(opts.localizer.MustLocalize("kafka.delete.log.info.deleteSuccess", localize.NewEntry("Name", registryName)))
+	logger.Info(opts.localizer.MustLocalize("crud.delete.log.info.deleteSuccess", localize.NewEntry("Name", registryName)))
 
 	// TODO this should be helper
 	currentContextRegistry := cfg.Services.ServiceRegistry

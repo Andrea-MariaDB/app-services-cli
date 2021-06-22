@@ -102,3 +102,8 @@ one = 'Please provide name of Service Registry'
 
 [registry.cmd.create.input.name.help]
 one = 'Name can be any alpha numeric characters'
+
+
+[crud.delete.log.info.deleteSuccess]
+description = 'Info message when instance was deleted'
+one = 'Instance "{{.Name}}" is being deleted'

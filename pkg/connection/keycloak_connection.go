@@ -12,8 +12,8 @@ import (
 	kafkainstanceclient "github.com/redhat-developer/app-services-sdk-go/kafkainstance/apiv1internal/client"
 	kafkamgmt "github.com/redhat-developer/app-services-sdk-go/kafkamgmt/apiv1"
 	kafkamgmtclient "github.com/redhat-developer/app-services-sdk-go/kafkamgmt/apiv1/client"
-	registrymgmt "github.com/redhat-developer/app-services-sdk-go/srsmgmt/apiv1"
-	registrymgmtclient "github.com/redhat-developer/app-services-sdk-go/srsmgmt/apiv1/client"
+	registrymgmt "github.com/redhat-developer/app-services-sdk-go/registrymgmt/apiv1"
+	registrymgmtclient "github.com/redhat-developer/app-services-sdk-go/registrymgmt/apiv1/client"
 	"golang.org/x/oauth2"
 
 	"github.com/redhat-developer/app-services-cli/pkg/api/ams/amsclient"

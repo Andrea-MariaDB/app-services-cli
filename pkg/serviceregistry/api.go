@@ -4,16 +4,12 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strconv"
 
-	srsmgmtv1 "github.com/redhat-developer/app-services-sdk-go/srsmgmt/apiv1/client"
+	srsmgmtv1 "github.com/redhat-developer/app-services-sdk-go/registrymgmt/apiv1/client"
 )
 
 func GetServiceRegistryByID(ctx context.Context, api srsmgmtv1.RegistriesApi, registryID string) (*srsmgmtv1.Registry, *http.Response, error) {
-	rgInt, _ := strconv.ParseInt(registryID, 10, 0)
-	registryInt := int32(rgInt)
-
-	request := api.GetRegistry(ctx, registryInt)
+	request := api.GetRegistry(ctx, registryID)
 	registry, _, err := request.Execute()
 	if err != nil {
 		return nil, nil, err
