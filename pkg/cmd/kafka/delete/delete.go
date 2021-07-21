@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/redhat-developer/app-services-cli/pkg/cmdutil"
 	"github.com/redhat-developer/app-services-cli/pkg/connection"
 	"github.com/redhat-developer/app-services-cli/pkg/localize"
 
@@ -50,9 +49,6 @@ func NewDeleteCommand(f *factory.Factory) *cobra.Command {
 		Long:    opts.localizer.MustLocalize("kafka.delete.cmd.longDescription"),
 		Example: opts.localizer.MustLocalize("kafka.delete.cmd.example"),
 		Args:    cobra.RangeArgs(0, 1),
-		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return cmdutil.FilterValidKafkas(f, toComplete)
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !opts.IO.CanPrompt() && !opts.force {
 				return flag.RequiredWhenNonInteractiveError("yes")
@@ -63,7 +59,7 @@ func NewDeleteCommand(f *factory.Factory) *cobra.Command {
 			}
 
 			if opts.name != "" && opts.id != "" {
-				return errors.New(opts.localizer.MustLocalize("kafka.common.error.idAndNameCannotBeUsed"))
+				return errors.New(opts.localizer.MustLocalize("service.error.idAndNameCannotBeUsed"))
 			}
 
 			if opts.id != "" || opts.name != "" {

@@ -12,6 +12,7 @@ import (
 	"github.com/redhat-developer/app-services-cli/pkg/iostreams"
 	"github.com/redhat-developer/app-services-cli/pkg/localize"
 	"github.com/redhat-developer/app-services-cli/pkg/logging"
+	"github.com/redhat-developer/app-services-cli/pkg/serviceaccount/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -47,6 +48,15 @@ func NewDeleteCommand(f *factory.Factory) *cobra.Command {
 				return flag.RequiredWhenNonInteractiveError("yes")
 			}
 
+			validator := &validation.Validator{
+				Localizer: opts.localizer,
+			}
+
+			validID := validator.ValidateUUID(opts.id)
+			if validID != nil {
+				return validID
+			}
+
 			return runDelete(opts)
 		},
 	}
@@ -71,7 +81,6 @@ func runDelete(opts *Options) (err error) {
 	}
 
 	_, httpRes, err := connection.API().ServiceAccount().GetServiceAccountById(context.Background(), opts.id).Execute()
-
 	if err != nil {
 		if httpRes == nil {
 			return err
@@ -114,7 +123,6 @@ func deleteServiceAccount(opts *Options) error {
 	}
 
 	_, httpRes, err := connection.API().ServiceAccount().DeleteServiceAccountById(context.Background(), opts.id).Execute()
-
 	if err != nil {
 		if httpRes == nil {
 			return err

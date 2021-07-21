@@ -10,6 +10,7 @@ import (
 	"net/url"
 
 	"github.com/redhat-developer/app-services-cli/internal/build"
+	"golang.org/x/oauth2"
 
 	"github.com/redhat-developer/app-services-cli/pkg/auth/login"
 	"github.com/redhat-developer/app-services-cli/pkg/auth/token"
@@ -18,7 +19,6 @@ import (
 	"github.com/redhat-developer/app-services-cli/internal/config"
 	"github.com/redhat-developer/app-services-cli/pkg/cmd/debug"
 	"github.com/redhat-developer/app-services-cli/pkg/cmd/factory"
-	"github.com/redhat-developer/app-services-cli/pkg/httputil"
 	"github.com/redhat-developer/app-services-cli/pkg/iostreams"
 	"github.com/redhat-developer/app-services-cli/pkg/logging"
 
@@ -149,12 +149,8 @@ func runLogin(opts *Options) (err error) {
 
 	if opts.offlineToken == "" {
 		tr := createTransport(opts.insecureSkipTLSVerify)
-		httpClient := &http.Client{
-			Transport: httputil.LoggingRoundTripper{
-				Proxied: tr,
-				Logger:  logger,
-			},
-		}
+		httpClient := oauth2.NewClient(context.Background(), nil)
+		httpClient.Transport = tr
 
 		loginExec := &login.AuthorizationCodeGrant{
 			HTTPClient: httpClient,
@@ -168,14 +164,12 @@ func runLogin(opts *Options) (err error) {
 		}
 
 		ssoCfg := &login.SSOConfig{
-			AuthURL: opts.authURL,
-			// TODO: make this a build variable
+			AuthURL:      opts.authURL,
 			RedirectPath: "sso-redhat-callback",
 		}
 
 		masSsoCfg := &login.SSOConfig{
-			AuthURL: opts.masAuthURL,
-			// TODO: make this a build variable
+			AuthURL:      opts.masAuthURL,
 			RedirectPath: "mas-sso-callback",
 		}
 
@@ -208,6 +202,7 @@ func runLogin(opts *Options) (err error) {
 
 	username, ok := token.GetUsername(cfg.AccessToken)
 	logger.Info("")
+
 	if !ok {
 		logger.Info(opts.localizer.MustLocalize("login.log.info.loginSuccessNoUsername"))
 	} else {

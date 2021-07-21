@@ -1,10 +1,12 @@
-== rhoas kafka create
+ifdef::env-github,env-browser[:context: cmd]
+[id='ref-rhoas-kafka-create_{context}']
+= rhoas kafka create
 
-ifdef::env-github,env-browser[:relfilesuffix: .adoc]
-
+[role="_abstract"]
 Create an Apache Kafka instance
 
-=== Synopsis
+[discrete]
+== Synopsis
 
 Create an Apache Kafka instance on a particular cloud provider and region.
 
@@ -15,7 +17,8 @@ After creating the instance you can view it by running "rhoas kafka describe".
 rhoas kafka create [flags]
 ....
 
-=== Examples
+[discrete]
+== Examples
 
 ....
 # start an interactive prompt to fill out the configuration values for the instance
@@ -29,23 +32,28 @@ $ rhoas kafka create -o yaml
 
 ....
 
-=== Options
+[discrete]
+== Options
 
-....
-  -o, --output string     Format in which to display the Kafka instance. Choose from: "json", "yml", "yaml" (default "json")
-      --provider string   Cloud Provider ID
-      --region string     Cloud Provider Region ID
-      --use               Set the new Kafka instance to the current instance (default true)
-....
+  `-o`, `--output` _string_::   Format in which to display the Kafka instance. Choose from: "json", "yml", "yaml" (default "json")
+      `--provider` _string_::   Cloud Provider ID
+      `--region` _string_::     Cloud Provider Region ID
+      `--use`::                 Set the new Kafka instance to the current instance (default true)
 
-=== Options inherited from parent commands
+[discrete]
+== Options inherited from parent commands
 
-....
-  -d, --debug   Enable debug mode
-  -h, --help    Show help for a command
-....
+  `-d`, `--debug`::   Enable debug mode
+  `-h`, `--help`::    Show help for a command
 
-=== SEE ALSO
+[discrete]
+== See also
 
-* link:rhoas_kafka{relfilesuffix}[rhoas kafka]	 - Create, view, use, and manage your Apache Kafka instances
+
+ifdef::env-github,env-browser[]
+* link:rhoas_kafka.adoc#rhoas-kafka[rhoas kafka]	 - Create, view, use, and manage your Apache Kafka instances
+endif::[]
+ifdef::pantheonenv[]
+* link:{path}#ref-rhoas-kafka_{context}[rhoas kafka]	 - Create, view, use, and manage your Apache Kafka instances
+endif::[]
 

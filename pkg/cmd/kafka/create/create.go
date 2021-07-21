@@ -8,15 +8,12 @@ import (
 
 	kafkamgmtclient "github.com/redhat-developer/app-services-sdk-go/kafkamgmt/apiv1/client"
 
-	"github.com/redhat-developer/app-services-cli/pkg/api/ams/amsclient"
 	"github.com/redhat-developer/app-services-cli/pkg/localize"
 
+	"github.com/redhat-developer/app-services-cli/pkg/ams"
 	"github.com/redhat-developer/app-services-cli/pkg/cmd/flag"
 	flagutil "github.com/redhat-developer/app-services-cli/pkg/cmdutil/flags"
 	"github.com/redhat-developer/app-services-cli/pkg/connection"
-	"github.com/redhat-developer/app-services-cli/pkg/kafka"
-
-	"github.com/redhat-developer/app-services-cli/internal/build"
 
 	"github.com/redhat-developer/app-services-cli/pkg/cloudprovider/cloudproviderutil"
 	"github.com/redhat-developer/app-services-cli/pkg/cloudregion/cloudregionutil"
@@ -24,7 +21,6 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/redhat-developer/app-services-cli/pkg/dump"
 	"github.com/redhat-developer/app-services-cli/pkg/iostreams"
-
 	pkgKafka "github.com/redhat-developer/app-services-cli/pkg/kafka"
 	"github.com/redhat-developer/app-services-cli/pkg/logging"
 
@@ -82,9 +78,13 @@ func NewCreateCommand(f *factory.Factory) *cobra.Command {
 		Args:    cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
+				validator := &pkgKafka.Validator{
+					Localizer:  opts.localizer,
+					Connection: opts.Connection,
+				}
 				opts.name = args[0]
 
-				if err := kafka.ValidateName(opts.name); err != nil {
+				if err := validator.ValidateName(opts.name); err != nil {
 					return err
 				}
 			}
@@ -138,16 +138,14 @@ func runCreate(opts *Options) error {
 		return err
 	}
 
-	api := connection.API()
-
 	// the user must have accepted the terms and conditions from the provider
 	// before they can create a kafka instance
-	termsAccepted, termsURL, err := checkTermsAccepted(opts.Connection)
+	termsAccepted, termsURL, err := ams.CheckTermsAccepted(connection)
 	if err != nil {
 		return err
 	}
 	if !termsAccepted && termsURL != "" {
-		logger.Info(opts.localizer.MustLocalize("kafka.create.log.info.termsCheck", localize.NewEntry("TermsURL", termsURL)))
+		logger.Info(opts.localizer.MustLocalize("service.info.termsCheck", localize.NewEntry("TermsURL", termsURL)))
 		return nil
 	}
 
@@ -178,6 +176,8 @@ func runCreate(opts *Options) error {
 
 	logger.Info(opts.localizer.MustLocalize("kafka.create.log.info.creatingKafka", localize.NewEntry("Name", payload.Name)))
 
+	api := connection.API()
+
 	a := api.Kafka().CreateKafka(context.Background())
 	a = a.KafkaRequestPayload(*payload)
 	a = a.Async(true)
@@ -207,13 +207,13 @@ func runCreate(opts *Options) error {
 	}
 
 	if opts.autoUse {
-		logger.Debug(opts.localizer.MustLocalize("kafka.create.debug.autoUseSetMessage"))
+		logger.Debug("Auto-use is set, updating the current instance")
 		cfg.Services.Kafka = kafkaCfg
 		if err := opts.Config.Save(cfg); err != nil {
 			return fmt.Errorf("%v: %w", opts.localizer.MustLocalize("kafka.common.error.couldNotUseKafka"), err)
 		}
 	} else {
-		logger.Debug(opts.localizer.MustLocalize("kafka.create.debug.autoUseNotSetMessage"))
+		logger.Debug("Auto-use is not set, skipping updating the current instance")
 	}
 
 	return nil
@@ -227,6 +227,11 @@ func promptKafkaPayload(opts *Options) (payload *kafkamgmtclient.KafkaRequestPay
 	}
 
 	api := connection.API()
+
+	validator := &pkgKafka.Validator{
+		Localizer:  opts.localizer,
+		Connection: opts.Connection,
+	}
 
 	// set type to store the answers from the prompt with defaults
 	answers := struct {
@@ -243,7 +248,7 @@ func promptKafkaPayload(opts *Options) (payload *kafkamgmtclient.KafkaRequestPay
 		Help:    opts.localizer.MustLocalize("kafka.create.input.name.help"),
 	}
 
-	err = survey.AskOne(promptName, &answers.Name, survey.WithValidator(pkgKafka.ValidateName), survey.WithValidator(pkgKafka.ValidateNameIsAvailable(api.Kafka(), opts.localizer)))
+	err = survey.AskOne(promptName, &answers.Name, survey.WithValidator(validator.ValidateName), survey.WithValidator(validator.ValidateNameIsAvailable))
 	if err != nil {
 		return nil, err
 	}
@@ -298,32 +303,4 @@ func promptKafkaPayload(opts *Options) (payload *kafkamgmtclient.KafkaRequestPay
 	}
 
 	return payload, nil
-}
-
-func checkTermsAccepted(connFunc factory.ConnectionFunc) (accepted bool, redirectURI string, err error) {
-	conn, err := connFunc(connection.DefaultConfigSkipMasAuth)
-	if err != nil {
-		return false, "", err
-	}
-
-	termsReview, _, err := conn.API().AccountMgmt().
-		ApiAuthorizationsV1SelfTermsReviewPost(context.Background()).
-		SelfTermsReview(amsclient.SelfTermsReview{
-			EventCode: &build.TermsReviewEventCode,
-			SiteCode:  &build.TermsReviewSiteCode,
-		}).
-		Execute()
-	if err != nil {
-		return false, "", err
-	}
-
-	if !termsReview.GetTermsAvailable() && !termsReview.GetTermsRequired() {
-		return true, "", nil
-	}
-
-	if !termsReview.HasRedirectUrl() {
-		return false, "", errors.New("terms must be signed, but there is no terms URL")
-	}
-
-	return false, termsReview.GetRedirectUrl(), nil
 }

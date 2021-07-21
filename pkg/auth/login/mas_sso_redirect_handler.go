@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/redhat-developer/app-services-cli/internal/config"
 	"github.com/redhat-developer/app-services-cli/pkg/auth/token"
 	"github.com/redhat-developer/app-services-cli/pkg/iostreams"
@@ -80,7 +80,7 @@ func (h *masRedirectPageHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	accessTkn, _ := token.Parse(resp.OAuth2Token.AccessToken)
 	tknClaims, _ := token.MapClaims(accessTkn)
 	userName, ok := tknClaims["preferred_username"]
-	var rawUsername string = "unknown"
+	rawUsername := "unknown"
 	if ok {
 		rawUsername = fmt.Sprintf("%v", userName)
 	}

@@ -3,6 +3,10 @@ package root
 import (
 	"flag"
 
+	"github.com/redhat-developer/app-services-cli/pkg/cmd/config"
+
+	"github.com/redhat-developer/app-services-cli/pkg/cmd/registry"
+
 	"github.com/redhat-developer/app-services-cli/internal/build"
 	"github.com/redhat-developer/app-services-cli/pkg/cmd/login"
 	"github.com/redhat-developer/app-services-cli/pkg/cmd/status"
@@ -30,19 +34,17 @@ func NewRootCommand(f *factory.Factory, version string) *cobra.Command {
 		Long:          f.Localizer.MustLocalize("root.cmd.longDescription"),
 		Example:       f.Localizer.MustLocalize("root.cmd.example"),
 	}
+	fs := cmd.PersistentFlags()
+	arguments.AddDebugFlag(fs)
+	// this flag comes out of the box, but has its own basic usage text, so this overrides that
+	var help bool
+
+	fs.BoolVarP(&help, "help", "h", false, f.Localizer.MustLocalize("root.cmd.flag.help.description"))
 
 	cmd.Version = version
 
 	cmd.SetVersionTemplate(f.Localizer.MustLocalize("version.cmd.outputText", localize.NewEntry("Version", build.Version)))
-
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-
-	fs := cmd.PersistentFlags()
-	arguments.AddDebugFlag(fs)
-
-	// this flag comes out of the box, but has its own basic usage text, so this overrides that
-	var help bool
-	fs.BoolVarP(&help, "help", "h", false, f.Localizer.MustLocalize("root.cmd.flag.help.description"))
 
 	// Child commands
 	cmd.AddCommand(login.NewLoginCmd(f))
@@ -54,6 +56,10 @@ func NewRootCommand(f *factory.Factory, version string) *cobra.Command {
 	cmd.AddCommand(completion.NewCompletionCommand(f))
 	cmd.AddCommand(whoami.NewWhoAmICmd(f))
 	cmd.AddCommand(cliversion.NewVersionCmd(f))
+	cmd.AddCommand(config.NewConfigCommand(f))
+
+	// Early stage/dev preview commands
+	cmd.AddCommand(registry.NewServiceRegistryCommand(f))
 
 	return cmd
 }

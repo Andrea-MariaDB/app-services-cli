@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 
@@ -43,6 +44,7 @@ type Options struct {
 	kafkaID           string
 	outputFormat      string
 	interactive       bool
+	cleanupPolicy     string
 
 	IO         *iostreams.IOStreams
 	Config     config.IConfig
@@ -73,9 +75,13 @@ func NewUpdateTopicCommand(f *factory.Factory) *cobra.Command {
 			return cmdutil.FilterValidTopicNameArgs(f, toComplete)
 		},
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			validator := topicutil.Validator{
+				Localizer: opts.localizer,
+			}
+
 			if !opts.IO.CanPrompt() && opts.retentionMsStr == "" && opts.partitionsStr == "" && opts.retentionBytesStr == "" {
 				return errors.New(opts.localizer.MustLocalize("argument.error.requiredWhenNonInteractive", localize.NewEntry("Argument", "name")))
-			} else if opts.retentionMsStr == "" && opts.partitionsStr == "" && opts.retentionBytesStr == "" {
+			} else if opts.retentionMsStr == "" && opts.partitionsStr == "" && opts.retentionBytesStr == "" && opts.cleanupPolicy == "" {
 				opts.interactive = true
 			}
 
@@ -89,14 +95,23 @@ func NewUpdateTopicCommand(f *factory.Factory) *cobra.Command {
 					return err
 				}
 
-				if opts.retentionMsStr == "" && opts.partitionsStr == "" && opts.retentionBytesStr == "" {
+				if opts.retentionMsStr == "" && opts.partitionsStr == "" && opts.retentionBytesStr == "" && opts.cleanupPolicy == "" {
 					logger.Info(opts.localizer.MustLocalize("kafka.topic.update.log.info.nothingToUpdate"))
 					return nil
 				}
 
-				if err = topicutil.ValidateName(opts.topicName); err != nil {
+				if err = validator.ValidateName(opts.topicName); err != nil {
 					return err
 				}
+
+				// check that a valid --cleanup-policy flag value is used
+				if opts.cleanupPolicy != "" {
+					validPolicy := flagutil.IsValidInput(opts.cleanupPolicy, topicutil.ValidCleanupPolicies...)
+					if !validPolicy {
+						return flag.InvalidValueError("cleanup-policy", opts.cleanupPolicy, topicutil.ValidCleanupPolicies...)
+					}
+				}
+
 			}
 
 			if err = flag.ValidateOutput(opts.outputFormat); err != nil {
@@ -111,7 +126,7 @@ func NewUpdateTopicCommand(f *factory.Factory) *cobra.Command {
 					return err
 				}
 
-				if err = topicutil.ValidatePartitionsN(partitionCount); err != nil {
+				if err = validator.ValidatePartitionsN(partitionCount); err != nil {
 					return err
 				}
 			}
@@ -122,7 +137,7 @@ func NewUpdateTopicCommand(f *factory.Factory) *cobra.Command {
 					return err
 				}
 
-				if err = topicutil.ValidateMessageRetentionPeriod(retentionPeriodMs); err != nil {
+				if err = validator.ValidateMessageRetentionPeriod(retentionPeriodMs); err != nil {
 					return err
 				}
 			}
@@ -133,7 +148,7 @@ func NewUpdateTopicCommand(f *factory.Factory) *cobra.Command {
 					return err
 				}
 
-				if err = topicutil.ValidateMessageRetentionSize(retentionSizeBytes); err != nil {
+				if err = validator.ValidateMessageRetentionSize(retentionSizeBytes); err != nil {
 					return err
 				}
 			}
@@ -156,15 +171,18 @@ func NewUpdateTopicCommand(f *factory.Factory) *cobra.Command {
 	cmd.Flags().StringVarP(&opts.outputFormat, "output", "o", "json", opts.localizer.MustLocalize("kafka.topic.common.flag.output.description"))
 	cmd.Flags().StringVar(&opts.retentionMsStr, "retention-ms", "", opts.localizer.MustLocalize("kafka.topic.common.input.retentionMs.description"))
 	cmd.Flags().StringVar(&opts.retentionBytesStr, "retention-bytes", "", opts.localizer.MustLocalize("kafka.topic.common.input.retentionBytes.description"))
+	cmd.Flags().StringVar(&opts.cleanupPolicy, "cleanup-policy", "", opts.localizer.MustLocalize("kafka.topic.common.input.cleanupPolicy.description"))
+	cmd.Flags().StringVar(&opts.partitionsStr, "partitions", "", opts.localizer.MustLocalize("kafka.topic.common.input.partitions.description"))
 
 	flagutil.EnableOutputFlagCompletion(cmd)
+
+	flagutil.EnableStaticFlagCompletion(cmd, "cleanup-policy", topicutil.ValidCleanupPolicies)
 
 	return cmd
 }
 
 // nolint:funlen
 func runCmd(opts *Options) error {
-
 	if opts.interactive {
 		// run the update command interactively
 		err := runInteractivePrompt(opts)
@@ -185,6 +203,14 @@ func runCmd(opts *Options) error {
 				return err
 			}
 		}
+
+		if opts.partitionsStr != "" {
+			partitionCount, err = topicutil.ConvertPartitionsToInt(opts.partitionsStr)
+			if err != nil {
+				return err
+			}
+		}
+
 	}
 
 	conn, err := opts.Connection(connection.DefaultConfigRequireMasAuth)
@@ -204,7 +230,7 @@ func runCmd(opts *Options) error {
 	// track if any values have changed
 	var needsUpdate bool
 
-	_, httpRes, err := api.GetTopic(context.Background(), opts.topicName).Execute()
+	topic, httpRes, err := api.GetTopic(context.Background(), opts.topicName).Execute()
 
 	topicNameTmplPair := localize.NewEntry("TopicName", opts.topicName)
 	kafkaNameTmplPair := localize.NewEntry("InstanceName", kafkaInstance.GetName())
@@ -218,7 +244,7 @@ func runCmd(opts *Options) error {
 	}
 
 	// map to store the config entries which will be updated
-	var configEntryMap map[string]*string = map[string]*string{}
+	configEntryMap := map[string]*string{}
 
 	updateTopicReq := api.UpdateTopic(context.Background(), opts.topicName)
 
@@ -232,6 +258,16 @@ func runCmd(opts *Options) error {
 	if opts.retentionBytesStr != "" {
 		needsUpdate = true
 		configEntryMap[topicutil.RetentionSizeKey] = &opts.retentionBytesStr
+	}
+
+	if opts.cleanupPolicy != "" && strings.Compare(opts.cleanupPolicy, topicutil.GetConfigValue(topic.GetConfig(), topicutil.CleanupPolicy)) != 0 {
+		needsUpdate = true
+		configEntryMap[topicutil.CleanupPolicy] = &opts.cleanupPolicy
+	}
+
+	if opts.partitionsStr != "" {
+		needsUpdate = true
+		topicSettings.SetNumPartitions(partitionCount)
 	}
 
 	if !needsUpdate {
@@ -286,10 +322,29 @@ func runCmd(opts *Options) error {
 }
 
 func runInteractivePrompt(opts *Options) (err error) {
-
-	_, err = opts.Connection(connection.DefaultConfigRequireMasAuth)
+	conn, err := opts.Connection(connection.DefaultConfigRequireMasAuth)
 	if err != nil {
 		return err
+	}
+
+	api, kafkaInstance, err := conn.API().KafkaAdmin(opts.kafkaID)
+	if err != nil {
+		return err
+	}
+
+	// check if topic exists
+	topic, httpRes, err := api.GetTopic(context.Background(), opts.topicName).
+		Execute()
+
+	topicNameTmplPair := localize.NewEntry("TopicName", opts.topicName)
+	kafkaNameTmplPair := localize.NewEntry("InstanceName", kafkaInstance.GetName())
+	if err != nil {
+		if httpRes == nil {
+			return err
+		}
+		if httpRes.StatusCode == 404 {
+			return errors.New(opts.localizer.MustLocalize("kafka.topic.common.error.topicNotFoundError", topicNameTmplPair, kafkaNameTmplPair))
+		}
 	}
 
 	logger, err := opts.Logger()
@@ -297,14 +352,30 @@ func runInteractivePrompt(opts *Options) (err error) {
 		return err
 	}
 
+	validator := topicutil.Validator{
+		Localizer: opts.localizer,
+	}
+
 	logger.Debug(opts.localizer.MustLocalize("common.log.debug.startingInteractivePrompt"))
+
+	partitionsPrompt := &survey.Input{
+		Message: opts.localizer.MustLocalize("kafka.topic.update.input.partitions.message"),
+		Help:    opts.localizer.MustLocalize("kafka.topic.update.input.partitions.help"),
+	}
+
+	validator.CurPartitions = len(*topic.Partitions)
+
+	err = survey.AskOne(partitionsPrompt, &opts.partitionsStr, survey.WithValidator(validator.ValidatePartitionsN))
+	if err != nil {
+		return err
+	}
 
 	retentionMsPrompt := &survey.Input{
 		Message: opts.localizer.MustLocalize("kafka.topic.update.input.retentionMs.message"),
 		Help:    opts.localizer.MustLocalize("kafka.topic.update.input.retentionMs.help"),
 	}
 
-	err = survey.AskOne(retentionMsPrompt, &opts.retentionMsStr, survey.WithValidator(topicutil.ValidateMessageRetentionPeriod))
+	err = survey.AskOne(retentionMsPrompt, &opts.retentionMsStr, survey.WithValidator(validator.ValidateMessageRetentionPeriod))
 	if err != nil {
 		return err
 	}
@@ -314,7 +385,19 @@ func runInteractivePrompt(opts *Options) (err error) {
 		Help:    opts.localizer.MustLocalize("kafka.topic.update.input.retentionBytes.help"),
 	}
 
-	err = survey.AskOne(retentionBytesPrompt, &opts.retentionBytesStr, survey.WithValidator(topicutil.ValidateMessageRetentionSize))
+	err = survey.AskOne(retentionBytesPrompt, &opts.retentionBytesStr, survey.WithValidator(validator.ValidateMessageRetentionSize))
+	if err != nil {
+		return err
+	}
+
+	cleanupPolicyPrompt := &survey.Select{
+		Message: opts.localizer.MustLocalize("kafka.topic.update.input.cleanupPolicy.message"),
+		Help:    opts.localizer.MustLocalize("kafka.topic.update.input.cleanupPolicy.help"),
+		Options: topicutil.ValidCleanupPolicies,
+		Default: topicutil.GetConfigValue(topic.GetConfig(), topicutil.CleanupPolicy),
+	}
+
+	err = survey.AskOne(cleanupPolicyPrompt, &opts.cleanupPolicy)
 	if err != nil {
 		return err
 	}

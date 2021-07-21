@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/redhat-developer/app-services-cli/pkg/api/kas"
 	"github.com/redhat-developer/app-services-cli/pkg/doc"
 	"github.com/redhat-developer/app-services-cli/pkg/dump"
+	"github.com/redhat-developer/app-services-cli/pkg/localize"
 	"github.com/redhat-developer/app-services-cli/pkg/localize/goi18n"
 
 	"github.com/redhat-developer/app-services-cli/pkg/cmdutil"
@@ -24,9 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	generateDocs = os.Getenv("GENERATE_DOCS") == "true"
-)
+var generateDocs = os.Getenv("GENERATE_DOCS") == "true"
 
 func main() {
 	localizer, err := goi18n.New(nil)
@@ -43,7 +41,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	initConfig(cmdFactory)
+	err = initConfig(cmdFactory)
+	if err != nil {
+		logger.Errorf(localizer.MustLocalize("main.config.error", localize.NewEntry("Error", err)))
+		os.Exit(1)
+	}
 
 	rootCmd := root.NewRootCommand(cmdFactory, buildVersion)
 
@@ -97,59 +99,35 @@ func generateDocumentation(rootCommand *cobra.Command) {
 	}
 }
 
-func initConfig(f *factory.Factory) {
-	// check if the config file is located in the old default location
-	// if so, move it to the new location
-	err := moveConfigFile(f.Config)
-	if err != nil {
-		fmt.Fprintf(f.IOStreams.ErrOut, "Error migrating config file to new location: %v", err)
+func initConfig(f *factory.Factory) error {
+	if !config.HasCustomLocation() {
+		rhoasCfgDir, err := config.DefaultDir()
+		if err != nil {
+			return err
+		}
+
+		// create rhoas config directory
+		if _, err = os.Stat(rhoasCfgDir); os.IsNotExist(err) {
+			err = os.MkdirAll(rhoasCfgDir, 0o700)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	cfgFile, err := f.Config.Load()
 
 	if cfgFile != nil {
-		return
+		return err
 	}
+
 	if !os.IsNotExist(err) {
-		fmt.Fprintln(f.IOStreams.ErrOut, err)
-		os.Exit(1)
+		return err
 	}
 
 	cfgFile = &config.Config{}
 	if err := f.Config.Save(cfgFile); err != nil {
-		fmt.Fprintln(f.IOStreams.ErrOut, err)
-		os.Exit(1)
-	}
-}
-
-// check if the config file is located in the old default location
-// if so, move it to the new location
-func moveConfigFile(cfg config.IConfig) error {
-	cfgPath, err := cfg.Location()
-	if err != nil {
 		return err
-	}
-	rhoasCfgDir, err := config.DefaultDir()
-	if err != nil {
-		return err
-	}
-	userCfgDir, err := os.UserConfigDir()
-	if err != nil {
-		return err
-	}
-	oldFilePath := filepath.Join(userCfgDir, ".rhoascli.json")
-	if os.Getenv("RHOASCONFIG") == oldFilePath {
-		return nil
-	}
-	// create rhoas config directory
-	if _, err = os.Stat(rhoasCfgDir); os.IsNotExist(err) {
-		err = os.MkdirAll(rhoasCfgDir, 0700)
-		if err != nil {
-			return err
-		}
-	}
-	if _, err = os.Stat(oldFilePath); err == nil {
-		return os.Rename(oldFilePath, cfgPath)
 	}
 	return nil
 }

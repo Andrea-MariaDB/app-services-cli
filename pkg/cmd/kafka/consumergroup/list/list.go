@@ -13,6 +13,7 @@ import (
 	"github.com/redhat-developer/app-services-cli/pkg/cmd/flag"
 	"github.com/redhat-developer/app-services-cli/pkg/cmdutil"
 	flagutil "github.com/redhat-developer/app-services-cli/pkg/cmdutil/flags"
+
 	"github.com/redhat-developer/app-services-cli/pkg/connection"
 	"github.com/redhat-developer/app-services-cli/pkg/dump"
 	"github.com/redhat-developer/app-services-cli/pkg/iostreams"
@@ -32,8 +33,10 @@ type Options struct {
 
 	output  string
 	kafkaID string
-	limit   int32
 	topic   string
+	search  string
+	page    int32
+	size    int32
 }
 
 type consumerGroupRow struct {
@@ -63,6 +66,14 @@ func NewListConsumerGroupCommand(f *factory.Factory) *cobra.Command {
 				return flag.InvalidValueError("output", opts.output, flagutil.ValidOutputFormats...)
 			}
 
+			if opts.page < 1 {
+				return errors.New(opts.localizer.MustLocalize("kafka.common.validation.page.error.invalid.minValue", localize.NewEntry("Page", opts.page)))
+			}
+
+			if opts.size < 1 {
+				return errors.New(opts.localizer.MustLocalize("kafka.common.validation.size.error.invalid.minValue", localize.NewEntry("Size", opts.size)))
+			}
+
 			cfg, err := opts.Config.Load()
 			if err != nil {
 				return err
@@ -78,9 +89,11 @@ func NewListConsumerGroupCommand(f *factory.Factory) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Int32VarP(&opts.limit, "limit", "", 1000, opts.localizer.MustLocalize("kafka.consumerGroup.list.flag.limit"))
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "", opts.localizer.MustLocalize("kafka.consumerGroup.list.flag.output.description"))
 	cmd.Flags().StringVar(&opts.topic, "topic", "", opts.localizer.MustLocalize("kafka.consumerGroup.list.flag.topic.description"))
+	cmd.Flags().StringVar(&opts.search, "search", "", opts.localizer.MustLocalize("kafka.consumerGroup.list.flag.search"))
+	cmd.Flags().Int32VarP(&opts.page, "page", "", int32(cmdutil.DefaultPageNumber), opts.localizer.MustLocalize("kafka.consumerGroup.list.flag.page"))
+	cmd.Flags().Int32VarP(&opts.size, "size", "", int32(cmdutil.DefaultPageSize), opts.localizer.MustLocalize("kafka.consumerGroup.list.flag.size"))
 
 	_ = cmd.RegisterFlagCompletionFunc("topic", func(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return cmdutil.FilterValidTopicNameArgs(f, toComplete)
@@ -91,6 +104,7 @@ func NewListConsumerGroupCommand(f *factory.Factory) *cobra.Command {
 	return cmd
 }
 
+// nolint:funlen
 func runList(opts *Options) (err error) {
 	conn, err := opts.Connection(connection.DefaultConfigRequireMasAuth)
 	if err != nil {
@@ -110,10 +124,18 @@ func runList(opts *Options) (err error) {
 	}
 
 	req := api.GetConsumerGroups(ctx)
-	req = req.Limit(opts.limit)
+
 	if opts.topic != "" {
 		req = req.Topic(opts.topic)
 	}
+	if opts.search != "" {
+		req = req.GroupIdFilter(opts.search)
+	}
+
+	req = req.Size(opts.size)
+
+	req = req.Page(opts.page)
+
 	consumerGroupData, httpRes, err := req.Execute()
 	if err != nil {
 		if httpRes == nil {
@@ -124,9 +146,9 @@ func runList(opts *Options) (err error) {
 
 		switch httpRes.StatusCode {
 		case 401:
-			return errors.New(opts.localizer.MustLocalize("kafka.consumerGroup.list.common.error.unauthorized", operationTmplPair))
+			return errors.New(opts.localizer.MustLocalize("kafka.consumerGroup.common.error.unauthorized", operationTmplPair))
 		case 403:
-			return errors.New(opts.localizer.MustLocalize("kafka.consumerGroup.list.common.error.forbidden", operationTmplPair))
+			return errors.New(opts.localizer.MustLocalize("kafka.consumerGroup.common.error.forbidden", operationTmplPair))
 		case 500:
 			return errors.New(opts.localizer.MustLocalize("kafka.consumerGroup.common.error.internalServerError"))
 		case 503:
@@ -136,7 +158,7 @@ func runList(opts *Options) (err error) {
 		}
 	}
 
-	ok, err := checkForConsumerGroups(int(consumerGroupData.GetCount()), opts, kafkaInstance.GetName())
+	ok, err := checkForConsumerGroups(int(consumerGroupData.GetTotal()), opts, kafkaInstance.GetName())
 	if err != nil {
 		return err
 	}
@@ -153,19 +175,18 @@ func runList(opts *Options) (err error) {
 		_ = dump.YAML(opts.IO.Out, data)
 	default:
 		logger.Info("")
-		topics := consumerGroupData.GetItems()
-		rows := mapConsumerGroupResultsToTableFormat(topics)
+		consumerGroups := consumerGroupData.GetItems()
+		rows := mapConsumerGroupResultsToTableFormat(consumerGroups)
 		dump.Table(opts.IO.Out, rows)
 
 		return nil
 	}
 
 	return nil
-
 }
 
 func mapConsumerGroupResultsToTableFormat(consumerGroups []kafkainstanceclient.ConsumerGroup) []consumerGroupRow {
-	var rows []consumerGroupRow = []consumerGroupRow{}
+	rows := []consumerGroupRow{}
 
 	for _, t := range consumerGroups {
 		consumers := t.GetConsumers()

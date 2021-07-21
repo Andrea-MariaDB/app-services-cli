@@ -11,6 +11,7 @@ import (
 
 	kafkamgmtclient "github.com/redhat-developer/app-services-sdk-go/kafkamgmt/apiv1/client"
 
+	"github.com/redhat-developer/app-services-cli/pkg/api/kas"
 	"github.com/redhat-developer/app-services-cli/pkg/iostreams"
 	"github.com/redhat-developer/app-services-cli/pkg/kafka/kafkaerr"
 	"github.com/redhat-developer/app-services-cli/pkg/localize"
@@ -21,8 +22,6 @@ import (
 
 	"github.com/redhat-developer/app-services-cli/internal/build"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-
-	"github.com/redhat-developer/app-services-cli/pkg/api/kas"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/redhat-developer/app-services-cli/pkg/color"
@@ -83,7 +82,6 @@ func NewKubernetesClusterConnection(connection connection.Connection,
 
 	// create the clientset for using Rest Client
 	clientset, err := kubernetes.NewForConfig(kubeClientConfig)
-
 	if err != nil {
 		return nil, fmt.Errorf("%v: %w", localizer.MustLocalize("cluster.kubernetes.error.loadConfigError"), err)
 	}
@@ -94,7 +92,6 @@ func NewKubernetesClusterConnection(connection connection.Connection,
 		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}})
 
 	dynamicClient, err := dynamic.NewForConfig(kubeClientConfig)
-
 	if err != nil {
 		return nil, fmt.Errorf("%v: %w", localizer.MustLocalize("cluster.kubernetes.error.loadConfigError"), err)
 	}
@@ -318,7 +315,6 @@ func (c *KubernetesCluster) createServiceAccount(ctx context.Context) (*kafkamgm
 	req := api.ServiceAccount().CreateServiceAccount(ctx)
 	req = req.ServiceAccountRequest(*serviceAcct)
 	res, _, err := req.Execute()
-
 	if err != nil {
 		return nil, fmt.Errorf("%v: %w", c.localizer.MustLocalize("cluster.kubernetes.createServiceAccount.error.createError"), err)
 	}

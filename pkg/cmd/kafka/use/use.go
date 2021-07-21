@@ -62,7 +62,7 @@ func NewUseCommand(f *factory.Factory) *cobra.Command {
 			}
 
 			if opts.name != "" && opts.id != "" {
-				return errors.New(opts.localizer.MustLocalize("kafka.common.error.idAndNameCannotBeUsed"))
+				return errors.New(opts.localizer.MustLocalize("service.error.idAndNameCannotBeUsed"))
 			}
 
 			return runUse(opts)
@@ -75,7 +75,6 @@ func NewUseCommand(f *factory.Factory) *cobra.Command {
 }
 
 func runUse(opts *Options) error {
-
 	if opts.interactive {
 		// run the use command interactively
 		err := runInteractivePrompt(opts)

@@ -71,7 +71,11 @@ func NewListCommand(f *factory.Factory) *cobra.Command {
 				return flag.InvalidValueError("output", opts.outputFormat, flagutil.ValidOutputFormats...)
 			}
 
-			if err := kafka.ValidateSearchInput(opts.search); err != nil {
+			validator := &kafka.Validator{
+				Localizer: opts.localizer,
+			}
+
+			if err := validator.ValidateSearchInput(opts.search); err != nil {
 				return err
 			}
 
@@ -113,7 +117,6 @@ func runList(opts *options) error {
 	}
 
 	response, _, err := a.Execute()
-
 	if err != nil {
 		return err
 	}
@@ -159,12 +162,10 @@ func mapResponseItemsToRows(kafkas []kafkamgmtclient.KafkaRequest) []kafkaRow {
 }
 
 func buildQuery(search string) string {
-
 	queryString := fmt.Sprintf(
 		"name like %%%[1]v%% or owner like %%%[1]v%% or cloud_provider like %%%[1]v%% or region like %%%[1]v%% or status like %%%[1]v%%",
 		search,
 	)
 
 	return queryString
-
 }

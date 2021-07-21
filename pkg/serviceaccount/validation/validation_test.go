@@ -2,7 +2,19 @@ package validation
 
 import (
 	"testing"
+
+	"github.com/redhat-developer/app-services-cli/pkg/localize/goi18n"
 )
+
+var validator *Validator
+
+func init() {
+	localizer, _ := goi18n.New(nil)
+
+	validator = &Validator{
+		Localizer: localizer,
+	}
+}
 
 func TestValidateName(t *testing.T) {
 	type args struct {
@@ -62,8 +74,59 @@ func TestValidateName(t *testing.T) {
 	// nolint:scopelint
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateName(tt.args.val); (err != nil) != tt.wantErr {
+			if err := validator.ValidateName(tt.args.val); (err != nil) != tt.wantErr {
 				t.Errorf("ValidateName() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateUUID(t *testing.T) {
+	type args struct {
+		val interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name:    "fails when length is 5",
+			args:    args{"kafka"},
+			wantErr: true,
+		},
+		{
+			name:    "fails for empty string",
+			args:    args{""},
+			wantErr: true,
+		},
+		{
+			name:    "fails for special chars",
+			args:    args{"9e4d1b1f-19d*-47c2-a334-e420c5e5bbce"},
+			wantErr: true,
+		},
+		{
+			name:    "passes for valid UUID",
+			args:    args{"9e4d1b1f-19dd-47c2-a334-e420c5e5bbce"},
+			wantErr: false,
+		},
+		{
+			name:    "passes for numeric UUID",
+			args:    args{"11111111-2222-3333-4444-555555555555"},
+			wantErr: false,
+		},
+		{
+			name:    "fails for ID containing capital letters",
+			args:    args{"9e4d1b1f-19dd-47c2-A334-e420c5e5bbce"},
+			wantErr: true,
+		},
+	}
+
+	// nolint:scopelint
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := validator.ValidateUUID(tt.args.val); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateUUID() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -109,10 +172,11 @@ func TestValidateDescription(t *testing.T) {
 			wantErr: false,
 		},
 	}
+
 	for _, tt := range tests {
 		// nolint:scopelint
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateDescription(tt.args.val); (err != nil) != tt.wantErr {
+			if err := validator.ValidateDescription(tt.args.val); (err != nil) != tt.wantErr {
 				t.Errorf("ValidateDescription() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

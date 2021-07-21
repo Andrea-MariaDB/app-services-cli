@@ -54,7 +54,6 @@ func FilterValidTopicNameArgs(f *factory.Factory, toComplete string) (validNames
 	}
 
 	topicRes, _, err := req.Execute()
-
 	if err != nil {
 		return validNames, directive
 	}
@@ -91,9 +90,11 @@ func FilterValidConsumerGroupIDs(f *factory.Factory, toComplete string) (validID
 		return validIDs, directive
 	}
 	req := api.GetConsumerGroups(context.Background())
+	if toComplete != "" {
+		req = req.GroupIdFilter(toComplete)
+	}
 
 	cgRes, _, err := req.Execute()
-
 	if err != nil {
 		return validIDs, directive
 	}
@@ -123,7 +124,6 @@ func FilterValidKafkas(f *factory.Factory, toComplete string) (validNames []stri
 		req = req.Search(searchQ)
 	}
 	kafkas, _, err := req.Execute()
-
 	if err != nil {
 		return validNames, directive
 	}
